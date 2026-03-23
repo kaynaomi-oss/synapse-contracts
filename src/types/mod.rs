@@ -1,7 +1,6 @@
 use soroban_sdk::{contracttype, Address, Env, String as SorobanString, Vec};
 
 // TODO(#45): replace generate_id with hash(anchor_transaction_id) for determinism
-// TODO(#46): add `Cancelled` status for user-initiated cancellations
 // TODO(#47): add `memo: Option<SorobanString>` field to Transaction
 // TODO(#48): add `memo_type: Option<SorobanString>` field to Transaction
 // TODO(#49): add `callback_type: Option<SorobanString>` field to Transaction
@@ -14,6 +13,7 @@ pub enum TransactionStatus {
     Processing,
     Completed,
     Failed,
+    Cancelled,
 }
 
 #[contracttype]

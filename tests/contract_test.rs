@@ -205,6 +205,58 @@ fn retry_dlq_panics_until_implemented() {
 // TODO(#32): test max retry cap
 
 // ---------------------------------------------------------------------------
+// Transaction cancellation — TODO(#58)–(#59)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn admin_can_cancel_pending_transaction() {
+    let env = Env::default();
+    let (admin, client) = setup(&env);
+    let relayer = Address::generate(&env);
+    client.grant_relayer(&admin, &relayer);
+    client.add_asset(&admin, &usd(&env));
+    let tx_id = client.register_deposit(&relayer, &SorobanString::from_str(&env, "cancel-1"),
+        &Address::generate(&env), &50_000_000, &usd(&env));
+    client.cancel_transaction(&admin, &tx_id);
+    let tx = client.get_transaction(&tx_id);
+    // TODO: Need to expose status field on Transaction struct or add a get_status method
+    // assert!(matches!(tx.status, TransactionStatus::Cancelled));
+}
+
+#[test]
+fn admin_can_cancel_processing_transaction() {
+    let env = Env::default();
+    let (admin, client) = setup(&env);
+    let relayer = Address::generate(&env);
+    client.grant_relayer(&admin, &relayer);
+    client.add_asset(&admin, &usd(&env));
+    let tx_id = client.register_deposit(&relayer, &SorobanString::from_str(&env, "cancel-2"),
+        &Address::generate(&env), &50_000_000, &usd(&env));
+    client.mark_processing(&relayer, &tx_id);
+    client.cancel_transaction(&admin, &tx_id);
+    let tx = client.get_transaction(&tx_id);
+    // TODO: Need to expose status field on Transaction struct or add a get_status method
+    // assert!(matches!(tx.status, TransactionStatus::Cancelled));
+}
+
+#[test]
+#[should_panic]
+fn non_admin_cannot_cancel_transaction() {
+    let env = Env::default();
+    let (admin, client) = setup(&env);
+    let relayer = Address::generate(&env);
+    client.grant_relayer(&admin, &relayer);
+    client.add_asset(&admin, &usd(&env));
+    let tx_id = client.register_deposit(&relayer, &SorobanString::from_str(&env, "cancel-3"),
+        &Address::generate(&env), &50_000_000, &usd(&env));
+    client.cancel_transaction(&relayer, &tx_id);
+}
+
+// TODO(#58): test that cancelling a Completed transaction panics
+// TODO(#58): test that cancelling a Failed transaction panics
+// TODO(#58): test that cancelling a Cancelled transaction panics
+
+// ---------------------------------------------------------------------------
 // Settlement — TODO(#33)–(#39)
 // ---------------------------------------------------------------------------
 

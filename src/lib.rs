@@ -138,6 +138,17 @@ impl SynapseContract {
         emit(&env, Event::MovedToDlq(tx_id, error_reason));
     }
 
+    // TODO(#58): enforce transition guard — must be Pending or Processing
+    // TODO(#59): consider whether cancelled transactions should go to DLQ
+    pub fn cancel_transaction(env: Env, caller: Address, tx_id: SorobanString) {
+        require_admin(&env, &caller);
+        let mut tx = deposits::get(&env, &tx_id);
+        tx.status = TransactionStatus::Cancelled;
+        tx.updated_ledger = env.ledger().sequence();
+        deposits::save(&env, &tx);
+        emit(&env, Event::StatusUpdated(tx_id, TransactionStatus::Cancelled));
+    }
+
     // TODO(#29): implement — reset tx status to Pending, increment retry_count
     // TODO(#30): remove DLQ entry after successful retry
     // TODO(#31): emit `DlqRetried` event
