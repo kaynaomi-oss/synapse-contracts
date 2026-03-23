@@ -173,6 +173,9 @@ impl SynapseContract {
         period_end: u64,
     ) -> SorobanString {
         require_relayer(&env, &caller);
+        if period_start > period_end {
+            panic!("period_start must be <= period_end")
+        }
         let s = Settlement::new(&env, asset_code.clone(), tx_ids, total_amount, period_start, period_end);
         let id = s.id.clone();
         settlements::save(&env, &s);
@@ -209,7 +212,7 @@ impl SynapseContract {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use soroban_sdk::{testutils::Address as _, Env};
+    use soroban_sdk::{testutils::Address as _, vec, Env, String as SorobanString};
 
     fn setup(env: &Env) -> (Address, Address) {
         env.mock_all_auths();
@@ -236,5 +239,24 @@ mod tests {
         // Unpause the contract
         client.unpause(&admin);
         assert!(!client.is_paused());
+    }
+
+    #[test]
+    #[should_panic(expected = "period_start must be <= period_end")]
+    fn test_finalize_settlement_panics_when_period_start_exceeds_period_end() {
+        let env = Env::default();
+        let (admin, contract_id) = setup(&env);
+        let client = SynapseContractClient::new(&env, &contract_id);
+        let relayer = Address::generate(&env);
+
+        client.grant_relayer(&admin, &relayer);
+        client.finalize_settlement(
+            &relayer,
+            &SorobanString::from_str(&env, "USD"),
+            &vec![&env],
+            &0i128,
+            &2u64,
+            &1u64,
+        );
     }
 }
