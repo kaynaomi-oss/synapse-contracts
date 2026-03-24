@@ -165,7 +165,6 @@ impl SynapseContract {
     }
 
     // TODO(#33): verify each tx_id exists and has status Completed
-    // TODO(#34): verify no tx_id is already linked to a settlement
     // TODO(#35): write settlement_id back onto each Transaction
     // TODO(#36): verify total_amount matches sum of tx amounts on-chain
     // TODO(#37): verify period_start <= period_end
@@ -183,6 +182,16 @@ impl SynapseContract {
         require_relayer(&env, &caller);
         if period_start > period_end {
             panic!("period_start must be <= period_end")
+        }
+        let n = tx_ids.len();
+        let mut i: u32 = 0;
+        while i < n {
+            let tx_id = tx_ids.get(i).unwrap();
+            let tx = deposits::get(&env, &tx_id);
+            if tx.settlement_id.len() > 0 {
+                panic!("transaction already settled");
+            }
+            i += 1;
         }
         let s = Settlement::new(&env, asset_code.clone(), tx_ids, total_amount, period_start, period_end);
         let id = s.id.clone();
@@ -221,6 +230,7 @@ impl SynapseContract {
 mod tests {
     use super::*;
     use crate::storage::{StorageKey, MAX_ASSETS};
+    use crate::types::Transaction;
     use soroban_sdk::{
         testutils::{storage::Persistent, Address as _, Events as _},
         vec,
@@ -421,6 +431,78 @@ mod tests {
             &0i128,
             &2u64,
             &1u64,
+        );
+    }
+
+    #[test]
+    fn test_finalize_settlement_succeeds_when_transactions_unsettled() {
+        let env = Env::default();
+        let (admin, contract_id) = setup(&env);
+        let client = SynapseContractClient::new(&env, &contract_id);
+        let relayer = Address::generate(&env);
+        let stellar = Address::generate(&env);
+        let asset = SorobanString::from_str(&env, "USD");
+        let anchor_id = SorobanString::from_str(&env, "finalize-ok-anchor");
+
+        client.grant_relayer(&admin, &relayer);
+        client.add_asset(&admin, &asset);
+        let tx_id = client.register_deposit(
+            &relayer,
+            &anchor_id,
+            &stellar,
+            &100i128,
+            &asset,
+        );
+
+        let settlement_id = client.finalize_settlement(
+            &relayer,
+            &asset,
+            &vec![&env, tx_id.clone()],
+            &100i128,
+            &1u64,
+            &2u64,
+        );
+        assert!(settlement_id.len() > 0);
+        let s = client.get_settlement(&settlement_id);
+        assert_eq!(s.total_amount, 100i128);
+    }
+
+    #[test]
+    #[should_panic(expected = "transaction already settled")]
+    fn test_finalize_settlement_panics_when_transaction_already_settled() {
+        let env = Env::default();
+        let (admin, contract_id) = setup(&env);
+        let client = SynapseContractClient::new(&env, &contract_id);
+        let relayer = Address::generate(&env);
+        let stellar = Address::generate(&env);
+        let asset = SorobanString::from_str(&env, "USD");
+        let anchor_id = SorobanString::from_str(&env, "finalize-dup-tx");
+
+        client.grant_relayer(&admin, &relayer);
+        client.add_asset(&admin, &asset);
+        let tx_id = client.register_deposit(
+            &relayer,
+            &anchor_id,
+            &stellar,
+            &100i128,
+            &asset,
+        );
+
+        env.as_contract(&contract_id, || {
+            let p = env.storage().persistent();
+            let key = StorageKey::Tx(tx_id.clone());
+            let mut tx: Transaction = p.get(&key).expect("tx");
+            tx.settlement_id = SorobanString::from_str(&env, "prior-settlement");
+            p.set(&key, &tx);
+        });
+
+        client.finalize_settlement(
+            &relayer,
+            &asset,
+            &vec![&env, tx_id],
+            &100i128,
+            &1u64,
+            &2u64,
         );
     }
 }
