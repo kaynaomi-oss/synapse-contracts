@@ -87,7 +87,6 @@ impl SynapseContract {
     // TODO(#19): add `memo_type` field support (text | hash | id)
     // TODO(#20): add `callback_type` field (deposit | withdrawal)
     // TODO(#21): bump persistent TTL on AnchorIdx entry after save
-    // TODO(#22): bump persistent TTL on Tx entry after save
     pub fn register_deposit(
         env: Env,
         caller: Address,
@@ -112,7 +111,6 @@ impl SynapseContract {
     }
 
     // TODO(#23): enforce transition guard — must be Pending
-    // TODO(#24): bump Tx TTL on every status update
     pub fn mark_processing(env: Env, caller: Address, tx_id: SorobanString) {
         require_relayer(&env, &caller);
         let mut tx = deposits::get(&env, &tx_id);
