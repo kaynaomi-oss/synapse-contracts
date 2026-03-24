@@ -191,7 +191,12 @@ impl SynapseContract {
         id
     }
 
-    // TODO(#40): add `get_dlq_entry(tx_id)` query
+    /// Read-only query for a single DLQ entry by transaction ID.
+    /// Returns `None` if no entry exists. Intended for operator debugging and triage.
+    pub fn get_dlq_entry(env: Env, tx_id: SorobanString) -> Option<DlqEntry> {
+        dlq::get(&env, &tx_id)
+    }
+
     // TODO(#41): add `get_admin()` query
     // TODO(#43): add `get_min_deposit()` query
     // TODO(#44): add `get_max_deposit()` query
@@ -403,6 +408,33 @@ mod tests {
             &admin,
             &SorobanString::from_str(&env, "OVERFLOW"),
         );
+    }
+
+    #[test]
+    fn test_get_dlq_entry_returns_entry_when_present() {
+        let env = Env::default();
+        let (_, contract_id) = setup(&env);
+        let tx_id = SorobanString::from_str(&env, "dlq-tx-1");
+        let entry = DlqEntry {
+            tx_id: tx_id.clone(),
+            error_reason: SorobanString::from_str(&env, "timeout"),
+            retry_count: 0,
+            moved_at_ledger: 1,
+            last_retry_ledger: 0,
+        };
+        env.as_contract(&contract_id, || dlq::push(&env, &entry));
+        let client = SynapseContractClient::new(&env, &contract_id);
+        let result = client.get_dlq_entry(&tx_id);
+        assert_eq!(result.unwrap().tx_id, tx_id);
+    }
+
+    #[test]
+    fn test_get_dlq_entry_returns_none_when_absent() {
+        let env = Env::default();
+        let (_, contract_id) = setup(&env);
+        let client = SynapseContractClient::new(&env, &contract_id);
+        let result = client.get_dlq_entry(&SorobanString::from_str(&env, "no-such-tx"));
+        assert!(result.is_none());
     }
 
     #[test]
