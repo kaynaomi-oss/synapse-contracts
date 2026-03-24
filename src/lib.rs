@@ -92,6 +92,7 @@ impl SynapseContract {
         stellar_account: Address,
         amount: i128,
         asset_code: SorobanString,
+        memo: Option<SorobanString>,
     ) -> SorobanString {
         require_relayer(&env, &caller);
         assets::require_allowed(&env, &asset_code);
@@ -107,6 +108,7 @@ impl SynapseContract {
             caller,
             amount,
             asset_code,
+            memo,
         );
         let id = tx.id.clone();
         deposits::save(&env, &tx);
@@ -256,6 +258,31 @@ mod tests {
         let tx = client.get_transaction(&tx_id);
         assert!(tx.memo.is_none());
     }
+    #[test]
+    fn test_register_deposit_stores_memo() {
+        let env = Env::default();
+        let (admin, contract_id) = setup(&env);
+        let client = SynapseContractClient::new(&env, &contract_id);
+        let relayer = Address::generate(&env);
+        let stellar = Address::generate(&env);
+        let asset = SorobanString::from_str(&env, "USD");
+        let anchor_id = SorobanString::from_str(&env, "memo-stored");
+        let memo = SorobanString::from_str(&env, "test-memo");
+
+        client.grant_relayer(&admin, &relayer);
+        client.add_asset(&admin, &asset);
+        let tx_id = client.register_deposit(
+            &relayer,
+            &anchor_id,
+            &stellar,
+            &100i128,
+            &asset,
+            &Some(memo.clone()),
+        );
+
+        let tx = client.get_transaction(&tx_id);
+        assert_eq!(tx.memo, Some(memo));
+    }
 
     fn setup_relayer_deposit<'a>(
         env: &'a Env,
@@ -269,7 +296,7 @@ mod tests {
         let anchor_id = SorobanString::from_str(env, anchor_label);
         client.grant_relayer(&admin, &relayer);
         client.add_asset(&admin, &asset);
-        let tx_id = client.register_deposit(&relayer, &anchor_id, &stellar, &1i128, &asset);
+        let tx_id = client.register_deposit(&relayer, &anchor_id, &stellar, &1i128, &asset, &None);
         (client, relayer, tx_id)
     }
 
@@ -370,6 +397,7 @@ mod tests {
             &stellar,
             &100i128,
             &asset,
+            &None,
         );
 
         let anchor_key = StorageKey::AnchorIdx(anchor_id);
