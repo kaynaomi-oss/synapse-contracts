@@ -86,10 +86,12 @@ impl SynapseContract {
         emit(&env, Event::AssetAdded(asset_code));
     }
 
-    // TODO(#14): panic if asset_code is not currently in the allowlist
     pub fn remove_asset(env: Env, caller: Address, asset_code: SorobanString) {
         require_not_paused(&env);
         require_admin(&env, &caller);
+        if !assets::is_allowed(&env, &asset_code) {
+            panic!("asset not in allowlist");
+        }
         assets::remove(&env, &asset_code);
         emit(&env, Event::AssetRemoved(asset_code));
     }
@@ -331,6 +333,16 @@ mod tests {
         let client = SynapseContractClient::new(&env, &contract_id);
         let non_relayer = Address::generate(&env);
         client.revoke_relayer(&admin, &non_relayer);
+    }
+
+    #[test]
+    #[should_panic(expected = "asset not in allowlist")]
+    fn test_remove_asset_panics_when_not_in_allowlist() {
+        let env = Env::default();
+        let (admin, contract_id) = setup(&env);
+        let client = SynapseContractClient::new(&env, &contract_id);
+        let unknown = SorobanString::from_str(&env, "UNK");
+        client.remove_asset(&admin, &unknown);
     }
 
     #[test]
