@@ -5,7 +5,7 @@ extern crate alloc;
 mod access;
 mod events;
 mod storage;
-mod types;
+pub mod types;
 
 use access::{require_admin, require_not_paused, require_relayer};
 use events::emit;
@@ -42,6 +42,7 @@ impl SynapseContract {
         }
         require_admin(&env, &caller);
         relayers::add(&env, &relayer);
+        emit(&env, Event::RelayerGranted(relayer));
     }
 
     // TODO(#6): panic if revoking a non-existent relayer
