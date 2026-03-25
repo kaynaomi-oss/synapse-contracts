@@ -43,6 +43,7 @@ impl Transaction {
         amount: i128,
         asset_code: SorobanString,
         callback_type: Option<SorobanString>,
+        memo: Option<SorobanString>,
     ) -> Self {
         let ledger = env.ledger().sequence();
         Self {
@@ -56,6 +57,8 @@ impl Transaction {
             updated_ledger: ledger,
             settlement_id: SorobanString::from_str(env, ""),
             callback_type,
+            memo,
+            callback_type: None,
         }
     }
 }
@@ -126,9 +129,13 @@ impl DlqEntry {
 #[derive(Clone)]
 pub enum Event {
     Initialized(Address),                                    // (admin)
+    DepositRegistered(SorobanString, SorobanString),         // (tx_id, anchor_id)
+    StatusUpdated(SorobanString, TransactionStatus),         // (tx_id, new_status)
+    MovedToDlq(SorobanString, SorobanString),                // (tx_id, error_reason)
     DepositRegistered(SorobanString, SorobanString), // (tx_id, anchor_id)
     StatusUpdated(SorobanString, TransactionStatus),  // (tx_id, new_status)
     MovedToDlq(SorobanString, SorobanString),         // (tx_id, error_reason)
+    DlqRetried(SorobanString),                        // (tx_id)
     SettlementFinalized(SorobanString, SorobanString, i128), // (settlement_id, asset_code, total)
     AssetAdded(SorobanString),
     AssetRemoved(SorobanString),
