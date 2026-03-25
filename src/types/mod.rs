@@ -42,6 +42,7 @@ impl Transaction {
         stellar_account: Address,
         amount: i128,
         asset_code: SorobanString,
+        memo: Option<SorobanString>,
     ) -> Self {
         let ledger = env.ledger().sequence();
         Self {
@@ -54,6 +55,7 @@ impl Transaction {
             created_ledger: ledger,
             updated_ledger: ledger,
             settlement_id: SorobanString::from_str(env, ""),
+            memo,
             callback_type: None,
         }
     }
@@ -118,16 +120,19 @@ impl DlqEntry {
 // TODO(#51): add `RelayerGranted(Address)` variant
 // TODO(#52): add `RelayerRevoked(Address)` variant
 // TODO(#54): add `ContractPaused` / `ContractUnpaused` variants
-// TODO(#55): add `DlqRetried(SorobanString)` variant
 // TODO(#56): add `MaxRetriesExceeded(SorobanString)` variant
 // TODO(#57): add `AdminTransferred(Address, Address)` variant
 #[contracttype]
 #[derive(Clone)]
 pub enum Event {
     Initialized(Address),                                    // (admin)
+    DepositRegistered(SorobanString, SorobanString),         // (tx_id, anchor_id)
+    StatusUpdated(SorobanString, TransactionStatus),         // (tx_id, new_status)
+    MovedToDlq(SorobanString, SorobanString),                // (tx_id, error_reason)
     DepositRegistered(SorobanString, SorobanString), // (tx_id, anchor_id)
     StatusUpdated(SorobanString, TransactionStatus),  // (tx_id, new_status)
     MovedToDlq(SorobanString, SorobanString),         // (tx_id, error_reason)
+    DlqRetried(SorobanString),                        // (tx_id)
     SettlementFinalized(SorobanString, SorobanString, i128), // (settlement_id, asset_code, total)
     AssetAdded(SorobanString),
     AssetRemoved(SorobanString),
