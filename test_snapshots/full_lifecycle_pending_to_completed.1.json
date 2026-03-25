@@ -114,7 +114,7 @@
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
                 },
                 {
-                  "string": "a1"
+                  "string": "0-0"
                 }
               ]
             }
@@ -136,7 +136,7 @@
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
                 },
                 {
-                  "string": "a1"
+                  "string": "0-0"
                 }
               ]
             }
@@ -192,7 +192,7 @@
                 },
                 "durability": "persistent",
                 "val": {
-                  "string": "a1"
+                  "string": "0-0"
                 }
               }
             },
@@ -211,7 +211,7 @@
                   "symbol": "Tx"
                 },
                 {
-                  "string": "a1"
+                  "string": "0-0"
                 }
               ]
             },
@@ -231,7 +231,7 @@
                       "symbol": "Tx"
                     },
                     {
-                      "string": "a1"
+                      "string": "0-0"
                     }
                   ]
                 },
@@ -278,7 +278,7 @@
                         "symbol": "id"
                       },
                       "val": {
-                        "string": "a1"
+                        "string": "0-0"
                       }
                     },
                     {
@@ -707,6 +707,33 @@
       "event": {
         "ext": "v0",
         "contract_id": "0000000000000000000000000000000000000000000000000000000000000001",
+        "type_": "contract",
+        "body": {
+          "v0": {
+            "topics": [
+              {
+                "symbol": "synapse"
+              }
+            ],
+            "data": {
+              "vec": [
+                {
+                  "symbol": "RelayerGranted"
+                },
+                {
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "failed_call": false
+    },
+    {
+      "event": {
+        "ext": "v0",
+        "contract_id": "0000000000000000000000000000000000000000000000000000000000000001",
         "type_": "diagnostic",
         "body": {
           "v0": {
@@ -868,7 +895,7 @@
                   "symbol": "DepositRegistered"
                 },
                 {
-                  "string": "a1"
+                  "string": "0-0"
                 },
                 {
                   "string": "a1"
@@ -896,7 +923,7 @@
               }
             ],
             "data": {
-              "string": "a1"
+              "string": "0-0"
             }
           }
         }
@@ -927,7 +954,7 @@
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
                 },
                 {
-                  "string": "a1"
+                  "string": "0-0"
                 }
               ]
             }
@@ -954,7 +981,7 @@
                   "symbol": "StatusUpdated"
                 },
                 {
-                  "string": "a1"
+                  "string": "0-0"
                 },
                 {
                   "vec": [
@@ -1015,7 +1042,7 @@
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
                 },
                 {
-                  "string": "a1"
+                  "string": "0-0"
                 }
               ]
             }
@@ -1042,7 +1069,7 @@
                   "symbol": "StatusUpdated"
                 },
                 {
-                  "string": "a1"
+                  "string": "0-0"
                 },
                 {
                   "vec": [
