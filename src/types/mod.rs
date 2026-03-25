@@ -24,6 +24,7 @@ pub struct Transaction {
     pub amount: i128,
     pub asset_code: SorobanString,
     pub memo: Option<SorobanString>,
+    pub memo_type: Option<SorobanString>,
     pub status: TransactionStatus,
     pub created_ledger: u32,
     pub updated_ledger: u32,
@@ -39,6 +40,7 @@ impl Transaction {
         amount: i128,
         asset_code: SorobanString,
         memo: Option<SorobanString>,
+        memo_type: Option<SorobanString>,
     ) -> Self {
         let ledger = env.ledger().sequence();
         Self {
@@ -49,6 +51,7 @@ impl Transaction {
             amount,
             asset_code,
             memo,
+            memo_type,
             status: TransactionStatus::Pending,
             created_ledger: ledger,
             updated_ledger: ledger,

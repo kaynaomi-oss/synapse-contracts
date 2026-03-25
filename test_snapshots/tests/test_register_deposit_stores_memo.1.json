@@ -96,7 +96,8 @@
                 },
                 {
                   "string": "test-memo"
-                }
+                },
+                "void"
               ]
             }
           },
@@ -248,6 +249,12 @@
                       "val": {
                         "string": "test-memo"
                       }
+                    },
+                    {
+                      "key": {
+                        "symbol": "memo_type"
+                      },
+                      "val": "void"
                     },
                     {
                       "key": {
@@ -794,7 +801,8 @@
                 },
                 {
                   "string": "test-memo"
-                }
+                },
+                "void"
               ]
             }
           }
@@ -948,6 +956,12 @@
                   "val": {
                     "string": "test-memo"
                   }
+                },
+                {
+                  "key": {
+                    "symbol": "memo_type"
+                  },
+                  "val": "void"
                 },
                 {
                   "key": {

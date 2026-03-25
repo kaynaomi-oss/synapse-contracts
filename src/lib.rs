@@ -97,7 +97,6 @@ impl SynapseContract {
     // TODO(#16): enforce maximum deposit amount (configurable by admin)
     // TODO(#17): validate anchor_transaction_id is non-empty
     // TODO(#18): add `memo` field support (mirrors synapse-core CallbackPayload)
-    // TODO(#19): add `memo_type` field support (text | hash | id)
     // TODO(#20): add `callback_type` field (deposit | withdrawal)
     // TODO(#21): bump persistent TTL on AnchorIdx entry after save
     pub fn register_deposit(
@@ -108,9 +107,21 @@ impl SynapseContract {
         amount: i128,
         asset_code: SorobanString,
         memo: Option<SorobanString>,
+        memo_type: Option<SorobanString>,
     ) -> SorobanString {
         require_relayer(&env, &caller);
         assets::require_allowed(&env, &asset_code);
+
+        if let Some(ref mt) = memo_type {
+            let valid = [
+                SorobanString::from_str(&env, "text"),
+                SorobanString::from_str(&env, "hash"),
+                SorobanString::from_str(&env, "id"),
+            ];
+            if !valid.iter().any(|v| v == mt) {
+                panic!("invalid memo_type")
+            }
+        }
 
         if let Some(existing) = deposits::find_by_anchor_id(&env, &anchor_transaction_id) {
             return existing;
@@ -124,6 +135,7 @@ impl SynapseContract {
             amount,
             asset_code,
             memo,
+            memo_type,
         );
         let id = tx.id.clone();
         deposits::save(&env, &tx);
@@ -330,7 +342,7 @@ mod tests {
         let anchor_id = SorobanString::from_str(env, anchor_label);
         client.grant_relayer(&admin, &relayer);
         client.add_asset(&admin, &asset);
-        let tx_id = client.register_deposit(&relayer, &anchor_id, &stellar, &1i128, &asset, &None);
+        let tx_id = client.register_deposit(&relayer, &anchor_id, &stellar, &1i128, &asset, &None, &None);
         (client, relayer, tx_id)
     }
 
@@ -372,10 +384,65 @@ mod tests {
             &100i128,
             &asset,
             &Some(memo.clone()),
+            &None,
         );
 
         let tx = client.get_transaction(&tx_id);
         assert_eq!(tx.memo, Some(memo));
+    }
+
+    #[test]
+    fn test_register_deposit_stores_memo_type() {
+        let env = Env::default();
+        let (admin, contract_id) = setup(&env);
+        let client = SynapseContractClient::new(&env, &contract_id);
+        let relayer = Address::generate(&env);
+        let stellar = Address::generate(&env);
+        let asset = SorobanString::from_str(&env, "USD");
+        client.grant_relayer(&admin, &relayer);
+        client.add_asset(&admin, &asset);
+        let mt = SorobanString::from_str(&env, "text");
+        let tx_id = client.register_deposit(
+            &relayer,
+            &SorobanString::from_str(&env, "mt-stored"),
+            &stellar,
+            &1i128,
+            &asset,
+            &None,
+            &Some(mt.clone()),
+        );
+        let tx = client.get_transaction(&tx_id);
+        assert_eq!(tx.memo_type, Some(mt));
+    }
+
+    #[test]
+    #[should_panic(expected = "invalid memo_type")]
+    fn test_register_deposit_panics_on_invalid_memo_type() {
+        let env = Env::default();
+        let (admin, contract_id) = setup(&env);
+        let client = SynapseContractClient::new(&env, &contract_id);
+        let relayer = Address::generate(&env);
+        let stellar = Address::generate(&env);
+        let asset = SorobanString::from_str(&env, "USD");
+        client.grant_relayer(&admin, &relayer);
+        client.add_asset(&admin, &asset);
+        client.register_deposit(
+            &relayer,
+            &SorobanString::from_str(&env, "mt-bad"),
+            &stellar,
+            &1i128,
+            &asset,
+            &None,
+            &Some(SorobanString::from_str(&env, "bad")),
+        );
+    }
+
+    #[test]
+    fn test_register_deposit_memo_type_none_is_valid() {
+        let env = Env::default();
+        let (client, relayer, tx_id) = setup_relayer_deposit(&env, "mt-none");
+        let tx = client.get_transaction(&tx_id);
+        assert!(tx.memo_type.is_none());
     }
 
     #[test]
@@ -519,7 +586,7 @@ mod tests {
         client.grant_relayer(&admin, &relayer);
         client.add_asset(&admin, &asset);
         let tx_id =
-            client.register_deposit(&relayer, &anchor_id, &stellar, &1i128, &asset, &None);
+            client.register_deposit(&relayer, &anchor_id, &stellar, &1i128, &asset, &None, &None);
         let anchor_key = StorageKey::AnchorIdx(anchor_id);
         let tx_key = StorageKey::Tx(tx_id);
         let (ttl_anchor, ttl_tx) = env.as_contract(&contract_id, || {
@@ -549,7 +616,7 @@ mod tests {
         client.grant_relayer(&admin, &relayer);
         client.add_asset(&admin, &asset);
         let tx_id =
-            client.register_deposit(&relayer, &anchor_id, &stellar, &1i128, &asset, &None);
+            client.register_deposit(&relayer, &anchor_id, &stellar, &1i128, &asset, &None, &None);
 
         client.mark_failed(&relayer, &tx_id, &SorobanString::from_str(&env, "err"));
         env.ledger().set_sequence_number(100);
@@ -594,7 +661,7 @@ mod tests {
         client.grant_relayer(&admin, &relayer);
         client.add_asset(&admin, &asset);
         let tx_id =
-            client.register_deposit(&relayer, &anchor_id, &stellar, &100i128, &asset, &None);
+            client.register_deposit(&relayer, &anchor_id, &stellar, &100i128, &asset, &None, &None);
         let settlement_id = client.finalize_settlement(
             &relayer,
             &asset,
@@ -648,7 +715,7 @@ mod tests {
         client.grant_relayer(&admin, &relayer);
         client.add_asset(&admin, &asset);
         let tx_id =
-            client.register_deposit(&relayer, &anchor_id, &stellar, &100i128, &asset, &None);
+            client.register_deposit(&relayer, &anchor_id, &stellar, &100i128, &asset, &None, &None);
         env.as_contract(&contract_id, || {
             let p = env.storage().persistent();
             let key = StorageKey::Tx(tx_id.clone());

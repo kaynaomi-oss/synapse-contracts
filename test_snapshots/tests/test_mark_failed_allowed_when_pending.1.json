@@ -94,6 +94,7 @@
                 {
                   "string": "USD"
                 },
+                "void",
                 "void"
               ]
             }
@@ -353,6 +354,12 @@
                     {
                       "key": {
                         "symbol": "memo"
+                      },
+                      "val": "void"
+                    },
+                    {
+                      "key": {
+                        "symbol": "memo_type"
                       },
                       "val": "void"
                     },
@@ -932,6 +939,7 @@
                 {
                   "string": "USD"
                 },
+                "void",
                 "void"
               ]
             }
@@ -1169,6 +1177,12 @@
                 {
                   "key": {
                     "symbol": "memo"
+                  },
+                  "val": "void"
+                },
+                {
+                  "key": {
+                    "symbol": "memo_type"
                   },
                   "val": "void"
                 },
