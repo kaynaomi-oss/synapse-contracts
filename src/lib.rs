@@ -29,7 +29,7 @@ impl SynapseContract {
     }
 
     // TODO(#3): emit `RelayerGranted` event
-    pub fn grant_relayer(env: Env, caller: Address, relayer: Address) {
+pub fn grant_relayer(env: Env, caller: Address, relayer: Address) {
         require_not_paused(&env);
         // Reject the all-zeros Stellar account (GAAAAAA...AWHF) as an invalid address.
         // This is the canonical "zero address" on Stellar — 32 zero bytes encoded as a G-address.
@@ -42,7 +42,6 @@ impl SynapseContract {
         }
         require_admin(&env, &caller);
         relayers::add(&env, &relayer);
-        emit(&env, Event::RelayerGranted(relayer));
     }
 
     // TODO(#6): panic if revoking a non-existent relayer
@@ -125,7 +124,7 @@ impl SynapseContract {
         assets::require_allowed(&env, &asset_code);
 
         if let Some(max) = max_deposit::get(&env) {
-            if amount > max { panic!("amount exceeds max deposit") }
+            if amount > *max { panic!("amount exceeds max deposit") }
         }
 
         if let Some(existing) = deposits::find_by_anchor_id(&env, &anchor_transaction_id) {
@@ -136,6 +135,7 @@ impl SynapseContract {
             &env,
             anchor_transaction_id.clone(),
             stellar_account,
+            caller.clone(),
             amount,
             asset_code,
             memo,

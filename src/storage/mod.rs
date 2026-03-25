@@ -86,13 +86,6 @@ pub mod assets {
         env.storage()
             .instance()
             .remove(&StorageKey::Asset(code.clone()));
-        set_count(env, count(env).saturating_sub(1));
-        env.storage().instance().set(&StorageKey::Asset(code.clone()), &true);
-    }
-    pub fn remove(env: &Env, code: &SorobanString) {
-        env.storage()
-            .instance()
-            .remove(&StorageKey::Asset(code.clone()));
     }
     pub fn is_allowed(env: &Env, code: &SorobanString) -> bool {
         env.storage()
@@ -109,12 +102,12 @@ pub mod assets {
 pub mod max_deposit {
     use super::*;
 
-    pub fn set(env: &Env, amount: &i128) {
-        env.storage().instance().set(&StorageKey::MaxDeposit, amount);
+    pub fn set(env: &Env, amount: i128) {
+        env.storage().instance().set(&StorageKey::MaxDeposit, &amount);
     }
 
-    pub fn get(env: &Env) -> i128 {
-        env.storage().instance().get(&StorageKey::MaxDeposit).unwrap_or(0i128)
+    pub fn get(env: &Env) -> Option<i128> {
+        env.storage().instance().get(&StorageKey::MaxDeposit)
     }
 }
 
@@ -163,15 +156,7 @@ pub mod settlements {
     }
 }
 
-pub mod max_deposit {
-    use super::*;
-    pub fn set(env: &Env, amount: i128) {
-        env.storage().instance().set(&StorageKey::MaxDeposit, &amount);
-    }
-    pub fn get(env: &Env) -> Option<i128> {
-        env.storage().instance().get(&StorageKey::MaxDeposit)
-    }
-}
+
 
 pub mod dlq {
     use super::*;

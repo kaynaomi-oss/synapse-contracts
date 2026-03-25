@@ -1,7 +1,4 @@
-use alloc::format;
 use soroban_sdk::{contracttype, Address, Env, String as SorobanString, Vec};
-extern crate alloc;
-use alloc::format;
 
 // TODO(#45): replace generate_id with hash(anchor_transaction_id) for determinism
 
