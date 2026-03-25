@@ -9,12 +9,36 @@ pub mod types;
 
 use access::{require_admin, require_not_paused, require_relayer};
 use events::emit;
-use soroban_sdk::{contract, contractimpl, Address, Env, String as SorobanString, Vec};
+use soroban_sdk::{contract, contractimpl, symbol_short, Address, Bytes, Env, String as SorobanString, Symbol, Vec};
 use storage::{assets, deposits, dlq, max_deposit, relayers, settlements};
 use types::{DlqEntry, Event, Settlement, Transaction, TransactionStatus};
 
 #[contract]
 pub struct SynapseContract;
+
+fn next_id(env: &Env, counter_key: Symbol) -> SorobanString {
+    let nonce: u32 = env.storage().instance().get(&counter_key).unwrap_or(0);
+    env.storage().instance().set(&counter_key, &(nonce + 1));
+
+    let ts = env.ledger().timestamp();
+    let seq = env.ledger().sequence();
+
+    let mut data = [0u8; 16];
+    data[..8].copy_from_slice(&ts.to_be_bytes());
+    data[8..12].copy_from_slice(&seq.to_be_bytes());
+    data[12..16].copy_from_slice(&nonce.to_be_bytes());
+
+    let hash = env.crypto().sha256(&Bytes::from_slice(env, &data));
+    let bytes = hash.to_array();
+
+    let mut hex = [0u8; 32];
+    const HEX: &[u8] = b"0123456789abcdef";
+    for i in 0..16 {
+        hex[i * 2] = HEX[(bytes[i] >> 4) as usize];
+        hex[i * 2 + 1] = HEX[(bytes[i] & 0xf) as usize];
+    }
+    SorobanString::from_bytes(env, &hex)
+}
 
 #[contractimpl]
 impl SynapseContract {
@@ -97,7 +121,7 @@ impl SynapseContract {
     pub fn set_max_deposit(env: Env, caller: Address, amount: i128) {
         require_admin(&env, &caller);
         if amount <= 0 { panic!("max deposit must be positive") }
-        max_deposit::set(&env, amount);
+        max_deposit::set(&env, &amount);
     }
 
     pub fn get_max_deposit(env: Env) -> Option<i128> {
@@ -132,10 +156,13 @@ impl SynapseContract {
             return existing;
         }
 
+        let tx_id = next_id(&env, symbol_short!("txnonce"));
         let tx = Transaction::new(
             &env,
+            tx_id,
             anchor_transaction_id.clone(),
             stellar_account,
+            caller.clone(),
             amount,
             asset_code,
             memo,
@@ -197,10 +224,16 @@ impl SynapseContract {
     // TODO(#31): emit `DlqRetried` event
     pub fn retry_dlq(env: Env, caller: Address, tx_id: SorobanString) {
         require_not_paused(&env);
-        require_admin(&env, &caller);
-
         let mut entry = dlq::get(&env, &tx_id).expect("dlq entry not found");
         let mut tx = deposits::get(&env, &tx_id);
+
+        // Allow either the admin or the original relayer that registered the tx.
+        caller.require_auth();
+        let is_admin = caller == storage::admin::get(&env);
+        let is_original_relayer = caller == tx.relayer;
+        if !is_admin && !is_original_relayer {
+            panic!("not admin or original relayer")
+        }
 
         tx.status = TransactionStatus::Pending;
         tx.updated_ledger = env.ledger().sequence();
@@ -232,25 +265,32 @@ impl SynapseContract {
         if period_start > period_end {
             panic!("period_start must be <= period_end")
         }
-        let n = tx_ids.len();
-        let mut i: u32 = 0;
-        while i < n {
-            let tx_id = tx_ids.get(i).unwrap();
-            let tx = deposits::get(&env, &tx_id);
-            if tx.settlement_id.len() > 0 {
-                panic!("transaction already settled");
-            }
-            i += 1;
-        }
+        let settlement_id = next_id(&env, symbol_short!("stlnonce"));
         let s = Settlement::new(
             &env,
+            settlement_id,
             asset_code.clone(),
-            tx_ids,
+            tx_ids.clone(),
             total_amount,
             period_start,
             period_end,
         );
         let id = s.id.clone();
+
+        let n = tx_ids.len();
+        let mut i: u32 = 0;
+        while i < n {
+            let tx_id = tx_ids.get(i).unwrap();
+            let mut tx = deposits::get(&env, &tx_id);
+            if tx.settlement_id.len() > 0 {
+                panic!("transaction already settled");
+            }
+            tx.settlement_id = id.clone();
+            tx.updated_ledger = env.ledger().sequence();
+            deposits::save(&env, &tx);
+            emit(&env, Event::Settled(tx_id, id.clone()));
+            i += 1;
+        }
         settlements::save(&env, &s);
         emit(
             &env,
@@ -286,15 +326,6 @@ impl SynapseContract {
 
     pub fn is_relayer(env: Env, address: Address) -> bool {
         relayers::has(&env, &address)
-    }
-
-    pub fn set_max_deposit(env: Env, caller: Address, amount: i128) {
-        require_admin(&env, &caller);
-        max_deposit::set(&env, &amount);
-    }
-
-    pub fn get_max_deposit(env: Env) -> i128 {
-        max_deposit::get(&env)
     }
 }
 
@@ -501,12 +532,12 @@ mod tests {
         let (admin, contract_id) = setup(&env);
         let client = SynapseContractClient::new(&env, &contract_id);
 
-        // Default should be 0
-        assert_eq!(client.get_max_deposit(), 0i128);
+        // Default should be None (unset)
+        assert_eq!(client.get_max_deposit(), None);
 
         // Set to 1000
         client.set_max_deposit(&admin, &1000i128);
-        assert_eq!(client.get_max_deposit(), 1000i128);
+        assert_eq!(client.get_max_deposit(), Some(1000i128));
 
         for code in TEST_ASSET_CODES {
             client.add_asset(&admin, &SorobanString::from_str(&env, code));
@@ -514,7 +545,7 @@ mod tests {
         client.add_asset(&admin, &SorobanString::from_str(&env, "OVERFLOW"));
         // Set to 5000
         client.set_max_deposit(&admin, &5000i128);
-        assert_eq!(client.get_max_deposit(), 5000i128);
+        assert_eq!(client.get_max_deposit(), Some(5000i128));
     }
 
     #[test]

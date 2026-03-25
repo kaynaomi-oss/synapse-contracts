@@ -1,7 +1,6 @@
-use alloc::format;
-use soroban_sdk::{contracttype, Address, Env, String as SorobanString, Vec};
 extern crate alloc;
-use alloc::format;
+
+use soroban_sdk::{contracttype, Address, Env, String as SorobanString, Vec};
 
 // TODO(#45): replace generate_id with hash(anchor_transaction_id) for determinism
 
@@ -42,6 +41,7 @@ pub struct Transaction {
 impl Transaction {
     pub fn new(
         env: &Env,
+        id: SorobanString,
         anchor_transaction_id: SorobanString,
         stellar_account: Address,
         relayer: Address,
@@ -51,7 +51,7 @@ impl Transaction {
     ) -> Self {
         let ledger = env.ledger().sequence();
         Self {
-            id: generate_id(env, &anchor_transaction_id),
+            id,
             anchor_transaction_id,
             stellar_account,
             relayer,
@@ -83,6 +83,7 @@ pub struct Settlement {
 impl Settlement {
     pub fn new(
         env: &Env,
+        id: SorobanString,
         asset_code: SorobanString,
         tx_ids: Vec<SorobanString>,
         total_amount: i128,
@@ -90,7 +91,7 @@ impl Settlement {
         period_end: u64,
     ) -> Self {
         Self {
-            id: generate_settlement_id(env),
+            id,
             asset_code,
             tx_ids,
             total_amount,
@@ -138,25 +139,9 @@ pub enum Event {
     MovedToDlq(SorobanString, SorobanString),                // (tx_id, error_reason)
     DlqRetried(SorobanString),                               // (tx_id)
     SettlementFinalized(SorobanString, SorobanString, i128), // (settlement_id, asset_code, total)
+    Settled(SorobanString, SorobanString),                   // (tx_id, settlement_id)
     AssetAdded(SorobanString),
     AssetRemoved(SorobanString),
+    RelayerGranted(Address),
     RelayerRevoked(Address),
-}
-
-fn generate_id(env: &Env) -> SorobanString {
-    let ts = env.ledger().timestamp();
-    let seq = env.ledger().sequence();
-    let mut data = [0u8; 12];
-    data[..8].copy_from_slice(&ts.to_be_bytes());
-    data[8..12].copy_from_slice(&seq.to_be_bytes());
-    let hash = env.crypto().sha256(&soroban_sdk::Bytes::from_slice(env, &data));
-    let bytes = hash.to_array();
-    // encode first 16 bytes as 32-char hex
-    let mut hex = [0u8; 32];
-    const HEX: &[u8] = b"0123456789abcdef";
-    for i in 0..16 {
-        hex[i * 2]     = HEX[(bytes[i] >> 4) as usize];
-        hex[i * 2 + 1] = HEX[(bytes[i] & 0xf) as usize];
-    }
-    SorobanString::from_bytes(env, &hex)
 }
