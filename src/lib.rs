@@ -71,10 +71,10 @@ impl SynapseContract {
         storage::pause::set(&env, true);
     }
 
-    // TODO(#11): emit `ContractUnpaused` event
     pub fn unpause(env: Env, caller: Address) {
         require_admin(&env, &caller);
         storage::pause::set(&env, false);
+        emit(&env, Event::ContractUnpaused);
     }
 
     // TODO(#12): validate asset_code is non-empty and uppercase-alphanumeric only
@@ -97,7 +97,7 @@ impl SynapseContract {
     pub fn set_max_deposit(env: Env, caller: Address, amount: i128) {
         require_admin(&env, &caller);
         if amount <= 0 { panic!("max deposit must be positive") }
-        max_deposit::set(&env, amount);
+        max_deposit::set(&env, &amount);
     }
 
     pub fn get_max_deposit(env: Env) -> Option<i128> {
@@ -136,6 +136,7 @@ impl SynapseContract {
             &env,
             anchor_transaction_id.clone(),
             stellar_account,
+            caller.clone(),
             amount,
             asset_code,
             memo,
@@ -286,15 +287,6 @@ impl SynapseContract {
 
     pub fn is_relayer(env: Env, address: Address) -> bool {
         relayers::has(&env, &address)
-    }
-
-    pub fn set_max_deposit(env: Env, caller: Address, amount: i128) {
-        require_admin(&env, &caller);
-        max_deposit::set(&env, &amount);
-    }
-
-    pub fn get_max_deposit(env: Env) -> i128 {
-        max_deposit::get(&env)
     }
 }
 
@@ -501,12 +493,12 @@ mod tests {
         let (admin, contract_id) = setup(&env);
         let client = SynapseContractClient::new(&env, &contract_id);
 
-        // Default should be 0
-        assert_eq!(client.get_max_deposit(), 0i128);
+        // Default should be None
+        assert_eq!(client.get_max_deposit(), None);
 
         // Set to 1000
         client.set_max_deposit(&admin, &1000i128);
-        assert_eq!(client.get_max_deposit(), 1000i128);
+        assert_eq!(client.get_max_deposit(), Some(1000i128));
 
         for code in TEST_ASSET_CODES {
             client.add_asset(&admin, &SorobanString::from_str(&env, code));
@@ -514,7 +506,7 @@ mod tests {
         client.add_asset(&admin, &SorobanString::from_str(&env, "OVERFLOW"));
         // Set to 5000
         client.set_max_deposit(&admin, &5000i128);
-        assert_eq!(client.get_max_deposit(), 5000i128);
+        assert_eq!(client.get_max_deposit(), Some(5000i128));
     }
 
     #[test]
@@ -594,6 +586,24 @@ mod tests {
         assert!(settlement_id.len() > 0);
         let s = client.get_settlement(&settlement_id);
         assert_eq!(s.total_amount, 100i128);
+    }
+
+    #[test]
+    fn test_unpause_emits_contract_unpaused_event() {
+        let env = Env::default();
+        let (admin, contract_id) = setup(&env);
+        let client = SynapseContractClient::new(&env, &contract_id);
+
+        client.pause(&admin);
+        env.events().all(); // clear events
+
+        client.unpause(&admin);
+        let events = env.events().all();
+        assert_eq!(events.len(), 1);
+        let (emitting_contract, topics, data) = events.get(0).unwrap();
+        assert_eq!(emitting_contract, contract_id);
+        assert_eq!(topics, (symbol_short!("synapse"),).into_val(&env));
+        let _ = data;
     }
 
     #[test]
