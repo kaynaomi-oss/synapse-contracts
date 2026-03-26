@@ -93,7 +93,8 @@
                 },
                 {
                   "string": "USD"
-                }
+                },
+                "void"
               ]
             }
           },
@@ -101,7 +102,6 @@
         }
       ]
     ],
-    [],
     [
       [
         "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M",
@@ -118,7 +118,7 @@
                   "string": "0"
                 },
                 {
-                  "string": "failed-initially"
+                  "string": "err"
                 }
               ]
             }
@@ -127,7 +127,6 @@
         }
       ]
     ],
-    [],
     [
       [
         "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4",
@@ -205,7 +204,7 @@
             },
             "ext": "v0"
           },
-          172800
+          4095
         ]
       ],
       [
@@ -250,7 +249,7 @@
                         "symbol": "error_reason"
                       },
                       "val": {
-                        "string": "failed-initially"
+                        "string": "err"
                       }
                     },
                     {
@@ -360,6 +359,12 @@
                     },
                     {
                       "key": {
+                        "symbol": "callback_type"
+                      },
+                      "val": "void"
+                    },
+                    {
+                      "key": {
                         "symbol": "created_ledger"
                       },
                       "val": {
@@ -376,11 +381,15 @@
                     },
                     {
                       "key": {
-                        "symbol": "relayer"
+                        "symbol": "memo"
                       },
-                      "val": {
-                        "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
-                      }
+                      "val": "void"
+                    },
+                    {
+                      "key": {
+                        "symbol": "memo_type"
+                      },
+                      "val": "void"
                     },
                     {
                       "key": {
@@ -475,18 +484,6 @@
                         },
                         "val": {
                           "bool": true
-                        }
-                      },
-                      {
-                        "key": {
-                          "vec": [
-                            {
-                              "symbol": "AssetCount"
-                            }
-                          ]
-                        },
-                        "val": {
-                          "u32": 1
                         }
                       },
                       {
@@ -982,7 +979,8 @@
                 },
                 {
                   "string": "USD"
-                }
+                },
+                "void"
               ]
             }
           }
@@ -1070,7 +1068,7 @@
                   "string": "0"
                 },
                 {
-                  "string": "failed-initially"
+                  "string": "err"
                 }
               ]
             }
@@ -1100,7 +1098,7 @@
                   "string": "0"
                 },
                 {
-                  "string": "failed-initially"
+                  "string": "err"
                 }
               ]
             }
@@ -1202,6 +1200,12 @@
                 },
                 {
                   "key": {
+                    "symbol": "callback_type"
+                  },
+                  "val": "void"
+                },
+                {
+                  "key": {
                     "symbol": "created_ledger"
                   },
                   "val": {
@@ -1218,11 +1222,15 @@
                 },
                 {
                   "key": {
-                    "symbol": "relayer"
+                    "symbol": "memo"
                   },
-                  "val": {
-                    "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
-                  }
+                  "val": "void"
+                },
+                {
+                  "key": {
+                    "symbol": "memo_type"
+                  },
+                  "val": "void"
                 },
                 {
                   "key": {
@@ -1427,6 +1435,12 @@
                 },
                 {
                   "key": {
+                    "symbol": "callback_type"
+                  },
+                  "val": "void"
+                },
+                {
+                  "key": {
                     "symbol": "created_ledger"
                   },
                   "val": {
@@ -1443,11 +1457,15 @@
                 },
                 {
                   "key": {
-                    "symbol": "relayer"
+                    "symbol": "memo"
                   },
-                  "val": {
-                    "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
-                  }
+                  "val": "void"
+                },
+                {
+                  "key": {
+                    "symbol": "memo_type"
+                  },
+                  "val": "void"
                 },
                 {
                   "key": {
