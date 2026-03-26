@@ -1,7 +1,5 @@
-use alloc::format;
-use soroban_sdk::{contracttype, Address, Env, String as SorobanString, Vec};
 extern crate alloc;
-use alloc::format;
+use soroban_sdk::{contracttype, Address, Env, String as SorobanString, Vec};
 
 // TODO(#45): replace generate_id with hash(anchor_transaction_id) for determinism
 
@@ -51,7 +49,7 @@ impl Transaction {
     ) -> Self {
         let ledger = env.ledger().sequence();
         Self {
-            id: generate_id(env, &anchor_transaction_id),
+            id: generate_id(env),
             anchor_transaction_id,
             stellar_account,
             relayer,
@@ -141,6 +139,7 @@ pub enum Event {
     AssetAdded(SorobanString),
     AssetRemoved(SorobanString),
     RelayerRevoked(Address),
+    RelayerGranted(Address),
 }
 
 fn generate_id(env: &Env) -> SorobanString {
@@ -152,6 +151,21 @@ fn generate_id(env: &Env) -> SorobanString {
     let hash = env.crypto().sha256(&soroban_sdk::Bytes::from_slice(env, &data));
     let bytes = hash.to_array();
     // encode first 16 bytes as 32-char hex
+    let mut hex = [0u8; 32];
+    const HEX: &[u8] = b"0123456789abcdef";
+    for i in 0..16 {
+        hex[i * 2]     = HEX[(bytes[i] >> 4) as usize];
+        hex[i * 2 + 1] = HEX[(bytes[i] & 0xf) as usize];
+    }
+    SorobanString::from_bytes(env, &hex)
+}
+
+fn generate_settlement_id(env: &Env) -> SorobanString {
+    let ts = env.ledger().timestamp();
+    let mut data = [0u8; 8];
+    data.copy_from_slice(&ts.to_be_bytes());
+    let hash = env.crypto().sha256(&soroban_sdk::Bytes::from_slice(env, &data));
+    let bytes = hash.to_array();
     let mut hex = [0u8; 32];
     const HEX: &[u8] = b"0123456789abcdef";
     for i in 0..16 {

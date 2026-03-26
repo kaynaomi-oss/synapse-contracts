@@ -1,6 +1,6 @@
 {
   "generators": {
-    "address": 2,
+    "address": 3,
     "nonce": 0
   },
   "auth": [
@@ -226,16 +226,19 @@
                 "bytes": "0000000000000000000000000000000000000000000000000000000000000001"
               },
               {
-                "symbol": "retry_dlq"
+                "symbol": "set_max_deposit"
               }
             ],
             "data": {
               "vec": [
                 {
-                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
                 },
                 {
-                  "string": "fake-id"
+                  "i128": {
+                    "hi": 0,
+                    "lo": 500000000
+                  }
                 }
               ]
             }
@@ -259,13 +262,16 @@
             "data": {
               "vec": [
                 {
-                  "string": "caught panic 'dlq entry not found' from contract function 'Symbol(retry_dlq)'"
+                  "string": "caught panic 'not admin' from contract function 'Symbol(obj#29)'"
                 },
                 {
-                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
                 },
                 {
-                  "string": "fake-id"
+                  "i128": {
+                    "hi": 0,
+                    "lo": 500000000
+                  }
                 }
               ]
             }
@@ -322,15 +328,18 @@
                   "string": "contract call failed"
                 },
                 {
-                  "symbol": "retry_dlq"
+                  "symbol": "set_max_deposit"
                 },
                 {
                   "vec": [
                     {
-                      "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                      "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
                     },
                     {
-                      "string": "fake-id"
+                      "i128": {
+                        "hi": 0,
+                        "lo": 500000000
+                      }
                     }
                   ]
                 }

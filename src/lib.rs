@@ -136,6 +136,7 @@ impl SynapseContract {
             &env,
             anchor_transaction_id.clone(),
             stellar_account,
+            caller.clone(),
             amount,
             asset_code,
             memo,
@@ -185,6 +186,9 @@ impl SynapseContract {
         require_not_paused(&env);
         require_relayer(&env, &caller);
         let mut tx = deposits::get(&env, &tx_id);
+        if tx.status == TransactionStatus::Completed {
+            panic!("cannot fail completed transaction");
+        }
         tx.status = TransactionStatus::Failed;
         tx.updated_ledger = env.ledger().sequence();
         deposits::save(&env, &tx);
@@ -288,14 +292,6 @@ impl SynapseContract {
         relayers::has(&env, &address)
     }
 
-    pub fn set_max_deposit(env: Env, caller: Address, amount: i128) {
-        require_admin(&env, &caller);
-        max_deposit::set(&env, &amount);
-    }
-
-    pub fn get_max_deposit(env: Env) -> i128 {
-        max_deposit::get(&env)
-    }
 }
 
 #[cfg(test)]
@@ -405,6 +401,7 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "cannot fail completed transaction")]
     fn test_mark_failed_panics_when_completed() {
         let env = Env::default();
         let (client, relayer, tx_id) = setup_relayer_deposit(&env, "mf-completed");
@@ -415,8 +412,6 @@ mod tests {
             &tx_id,
             &SorobanString::from_str(&env, "late-fail"),
         );
-        let tx = client.get_transaction(&tx_id);
-        assert!(matches!(tx.status, TransactionStatus::Failed));
     }
 
     #[test]
@@ -502,11 +497,11 @@ mod tests {
         let client = SynapseContractClient::new(&env, &contract_id);
 
         // Default should be 0
-        assert_eq!(client.get_max_deposit(), 0i128);
+        assert_eq!(client.get_max_deposit(), None);
 
         // Set to 1000
         client.set_max_deposit(&admin, &1000i128);
-        assert_eq!(client.get_max_deposit(), 1000i128);
+        assert_eq!(client.get_max_deposit(), Some(1000i128));
 
         for code in TEST_ASSET_CODES {
             client.add_asset(&admin, &SorobanString::from_str(&env, code));
@@ -514,7 +509,7 @@ mod tests {
         client.add_asset(&admin, &SorobanString::from_str(&env, "OVERFLOW"));
         // Set to 5000
         client.set_max_deposit(&admin, &5000i128);
-        assert_eq!(client.get_max_deposit(), 5000i128);
+        assert_eq!(client.get_max_deposit(), Some(5000i128));
     }
 
     #[test]

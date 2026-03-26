@@ -226,7 +226,7 @@
                 "bytes": "0000000000000000000000000000000000000000000000000000000000000001"
               },
               {
-                "symbol": "retry_dlq"
+                "symbol": "set_max_deposit"
               }
             ],
             "data": {
@@ -235,7 +235,10 @@
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
                 },
                 {
-                  "string": "fake-id"
+                  "i128": {
+                    "hi": 0,
+                    "lo": 0
+                  }
                 }
               ]
             }
@@ -259,13 +262,16 @@
             "data": {
               "vec": [
                 {
-                  "string": "caught panic 'dlq entry not found' from contract function 'Symbol(retry_dlq)'"
+                  "string": "caught panic 'max deposit must be positive' from contract function 'Symbol(obj#27)'"
                 },
                 {
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
                 },
                 {
-                  "string": "fake-id"
+                  "i128": {
+                    "hi": 0,
+                    "lo": 0
+                  }
                 }
               ]
             }
@@ -322,7 +328,7 @@
                   "string": "contract call failed"
                 },
                 {
-                  "symbol": "retry_dlq"
+                  "symbol": "set_max_deposit"
                 },
                 {
                   "vec": [
@@ -330,7 +336,10 @@
                       "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
                     },
                     {
-                      "string": "fake-id"
+                      "i128": {
+                        "hi": 0,
+                        "lo": 0
+                      }
                     }
                   ]
                 }
