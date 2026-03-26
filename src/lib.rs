@@ -95,6 +95,7 @@ impl SynapseContract {
     }
 
     pub fn set_max_deposit(env: Env, caller: Address, amount: i128) {
+        require_not_paused(&env);
         require_admin(&env, &caller);
         if amount <= 0 { panic!("max deposit must be positive") }
         max_deposit::set(&env, &amount);
@@ -643,6 +644,183 @@ mod tests {
             &100i128,
             &1u64,
             &2u64,
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // Pause enforcement — issue #10
+    // -----------------------------------------------------------------------
+
+    fn setup_with_relayer(env: &Env) -> (Address, Address, Address, SynapseContractClient) {
+        let (admin, contract_id) = setup(env);
+        let client = SynapseContractClient::new(env, &contract_id);
+        let relayer = Address::generate(env);
+        client.grant_relayer(&admin, &relayer);
+        client.add_asset(&admin, &SorobanString::from_str(env, "USD"));
+        (admin, contract_id, relayer, client)
+    }
+
+    #[test]
+    #[should_panic(expected = "contract paused")]
+    fn test_paused_blocks_grant_relayer() {
+        let env = Env::default();
+        let (admin, _, _, client) = setup_with_relayer(&env);
+        client.pause(&admin);
+        client.grant_relayer(&admin, &Address::generate(&env));
+    }
+
+    #[test]
+    #[should_panic(expected = "contract paused")]
+    fn test_paused_blocks_revoke_relayer() {
+        let env = Env::default();
+        let (admin, _, relayer, client) = setup_with_relayer(&env);
+        client.pause(&admin);
+        client.revoke_relayer(&admin, &relayer);
+    }
+
+    #[test]
+    #[should_panic(expected = "contract paused")]
+    fn test_paused_blocks_transfer_admin() {
+        let env = Env::default();
+        let (admin, _, _, client) = setup_with_relayer(&env);
+        client.pause(&admin);
+        client.transfer_admin(&admin, &Address::generate(&env));
+    }
+
+    #[test]
+    #[should_panic(expected = "contract paused")]
+    fn test_paused_blocks_add_asset() {
+        let env = Env::default();
+        let (admin, _, _, client) = setup_with_relayer(&env);
+        client.pause(&admin);
+        client.add_asset(&admin, &SorobanString::from_str(&env, "BTC"));
+    }
+
+    #[test]
+    #[should_panic(expected = "contract paused")]
+    fn test_paused_blocks_remove_asset() {
+        let env = Env::default();
+        let (admin, _, _, client) = setup_with_relayer(&env);
+        client.pause(&admin);
+        client.remove_asset(&admin, &SorobanString::from_str(&env, "USD"));
+    }
+
+    #[test]
+    #[should_panic(expected = "contract paused")]
+    fn test_paused_blocks_set_max_deposit() {
+        let env = Env::default();
+        let (admin, _, _, client) = setup_with_relayer(&env);
+        client.pause(&admin);
+        client.set_max_deposit(&admin, &1000i128);
+    }
+
+    #[test]
+    #[should_panic(expected = "contract paused")]
+    fn test_paused_blocks_register_deposit() {
+        let env = Env::default();
+        let (admin, _, relayer, client) = setup_with_relayer(&env);
+        client.pause(&admin);
+        client.register_deposit(
+            &relayer,
+            &SorobanString::from_str(&env, "anchor-paused"),
+            &Address::generate(&env),
+            &100i128,
+            &SorobanString::from_str(&env, "USD"),
+            &None,
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "contract paused")]
+    fn test_paused_blocks_mark_processing() {
+        let env = Env::default();
+        let (admin, _, relayer, client) = setup_with_relayer(&env);
+        let tx_id = client.register_deposit(
+            &relayer,
+            &SorobanString::from_str(&env, "anchor-mp"),
+            &Address::generate(&env),
+            &100i128,
+            &SorobanString::from_str(&env, "USD"),
+            &None,
+        );
+        client.pause(&admin);
+        client.mark_processing(&relayer, &tx_id);
+    }
+
+    #[test]
+    #[should_panic(expected = "contract paused")]
+    fn test_paused_blocks_mark_completed() {
+        let env = Env::default();
+        let (admin, _, relayer, client) = setup_with_relayer(&env);
+        let tx_id = client.register_deposit(
+            &relayer,
+            &SorobanString::from_str(&env, "anchor-mc"),
+            &Address::generate(&env),
+            &100i128,
+            &SorobanString::from_str(&env, "USD"),
+            &None,
+        );
+        client.mark_processing(&relayer, &tx_id);
+        client.pause(&admin);
+        client.mark_completed(&relayer, &tx_id);
+    }
+
+    #[test]
+    #[should_panic(expected = "contract paused")]
+    fn test_paused_blocks_mark_failed() {
+        let env = Env::default();
+        let (admin, _, relayer, client) = setup_with_relayer(&env);
+        let tx_id = client.register_deposit(
+            &relayer,
+            &SorobanString::from_str(&env, "anchor-mf"),
+            &Address::generate(&env),
+            &100i128,
+            &SorobanString::from_str(&env, "USD"),
+            &None,
+        );
+        client.pause(&admin);
+        client.mark_failed(&relayer, &tx_id, &SorobanString::from_str(&env, "err"));
+    }
+
+    #[test]
+    #[should_panic(expected = "contract paused")]
+    fn test_paused_blocks_retry_dlq() {
+        let env = Env::default();
+        let (admin, _, relayer, client) = setup_with_relayer(&env);
+        let tx_id = client.register_deposit(
+            &relayer,
+            &SorobanString::from_str(&env, "anchor-rdlq"),
+            &Address::generate(&env),
+            &100i128,
+            &SorobanString::from_str(&env, "USD"),
+            &None,
+        );
+        client.mark_failed(&relayer, &tx_id, &SorobanString::from_str(&env, "err"));
+        client.pause(&admin);
+        client.retry_dlq(&admin, &tx_id);
+    }
+
+    #[test]
+    #[should_panic(expected = "contract paused")]
+    fn test_paused_blocks_finalize_settlement() {
+        let env = Env::default();
+        let (admin, _, relayer, client) = setup_with_relayer(&env);
+        let tx_id = client.register_deposit(
+            &relayer,
+            &SorobanString::from_str(&env, "anchor-fs"),
+            &Address::generate(&env),
+            &100i128,
+            &SorobanString::from_str(&env, "USD"),
+            &None,
+        );
+        client.pause(&admin);
+        client.finalize_settlement(
+            &relayer,
+            &SorobanString::from_str(&env, "USD"),
+            &vec![&env, tx_id],
+            &100i128,
+            &0u64,
+            &1u64,
         );
     }
 }
