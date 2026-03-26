@@ -56,7 +56,6 @@ impl SynapseContract {
         emit(&env, Event::RelayerRevoked(relayer));
     }
 
-    // TODO(#7): emit `AdminTransferred` event
     // TODO(#8): two-step admin transfer (propose + accept) to prevent lockout
     pub fn transfer_admin(env: Env, caller: Address, new_admin: Address) {
         require_not_paused(&env);
@@ -569,6 +568,25 @@ mod tests {
         let (emitting_contract, topics, _data) = events.get(0).unwrap();
         assert_eq!(emitting_contract, contract_id);
         assert_eq!(topics, (symbol_short!("synapse"),).into_val(&env));
+    }
+
+    #[test]
+    fn test_transfer_admin_emits_event() {
+        let env = Env::default();
+        let (admin, contract_id) = setup(&env);
+        let client = SynapseContractClient::new(&env, &contract_id);
+        let new_admin = Address::generate(&env);
+
+        client.transfer_admin(&admin, &new_admin);
+
+        let events = env.events().all();
+        let (_, _, data) = events.last().unwrap();
+        assert_eq!(
+            Event::try_from_val(&env, &data).unwrap(),
+            Event::AdminTransferred(admin, new_admin.clone()),
+        );
+        // new admin is now stored
+        assert_eq!(client.get_admin(), new_admin);
     }
 
     #[test]
