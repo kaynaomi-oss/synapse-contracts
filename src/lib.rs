@@ -853,6 +853,8 @@ mod tests {
     fn test_finalize_settlement_writes_settlement_id_back_onto_transactions() {
         let env = Env::default();
         let (client, relayer, tx_id) = setup_relayer_deposit(&env, "settle-backref");
+        client.mark_processing(&relayer, &tx_id);
+        client.mark_completed(&relayer, &tx_id);
         let settlement_id = client.finalize_settlement(
             &relayer,
             &SorobanString::from_str(&env, "USD"),
@@ -905,6 +907,9 @@ mod tests {
         client.add_asset(&admin, &asset);
         let tx_id =
             client.register_deposit(&relayer, &anchor_id, &stellar, &100i128, &asset, &None);
+
+        client.mark_processing(&relayer, &tx_id);
+        client.mark_completed(&relayer, &tx_id);
 
         let settlement_id = client.finalize_settlement(
             &relayer,
@@ -960,6 +965,9 @@ mod tests {
         client.add_asset(&admin, &asset);
         let tx_id =
             client.register_deposit(&relayer, &anchor_id, &stellar, &100i128, &asset, &None);
+
+        client.mark_processing(&relayer, &tx_id);
+        client.mark_completed(&relayer, &tx_id);
 
         env.as_contract(&contract_id, || {
             let p = env.storage().persistent();
