@@ -132,6 +132,8 @@ pub enum Event {
     RelayerRevoked(Address),
     ContractPaused,
     ContractUnpaused,
+    AdminTransferProposed(Address),          // (proposed_admin)
+    AdminTransferred(Address, Address),      // (old_admin, new_admin)
 }
 
 fn generate_id(env: &Env) -> SorobanString {

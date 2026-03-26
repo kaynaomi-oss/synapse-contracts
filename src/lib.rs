@@ -10,7 +10,7 @@ pub mod types;
 use access::{require_admin, require_not_paused, require_relayer};
 use events::emit;
 use soroban_sdk::{contract, contractimpl, Address, Env, String as SorobanString, Vec};
-use storage::{assets, deposits, dlq, max_deposit, relayers, settlements};
+use storage::{assets, deposits, dlq, max_deposit, pending_admin, relayers, settlements};
 use types::{DlqEntry, Event, Settlement, Transaction, TransactionStatus};
 
 #[contract]
@@ -56,12 +56,29 @@ impl SynapseContract {
         emit(&env, Event::RelayerRevoked(relayer));
     }
 
-    // TODO(#7): emit `AdminTransferred` event
-    // TODO(#8): two-step admin transfer (propose + accept) to prevent lockout
-    pub fn transfer_admin(env: Env, caller: Address, new_admin: Address) {
+    // TODO(#7): emit `AdminTransferred` event — DONE via two-step
+    pub fn propose_admin(env: Env, caller: Address, new_admin: Address) {
         require_not_paused(&env);
         require_admin(&env, &caller);
-        storage::admin::set(&env, &new_admin);
+        pending_admin::set(&env, &new_admin);
+        emit(&env, Event::AdminTransferProposed(new_admin));
+    }
+
+    pub fn accept_admin(env: Env, caller: Address) {
+        require_not_paused(&env);
+        caller.require_auth();
+        let pending = pending_admin::get(&env).expect("no pending admin");
+        if caller != pending {
+            panic!("not pending admin");
+        }
+        let old_admin = storage::admin::get(&env);
+        storage::admin::set(&env, &caller);
+        pending_admin::clear(&env);
+        emit(&env, Event::AdminTransferred(old_admin, caller));
+    }
+
+    pub fn get_pending_admin(env: Env) -> Option<Address> {
+        pending_admin::get(&env)
     }
 
     pub fn pause(env: Env, caller: Address) {
@@ -697,7 +714,7 @@ mod tests {
         let env = Env::default();
         let (admin, _, _, client) = setup_with_relayer(&env);
         client.pause(&admin);
-        client.transfer_admin(&admin, &Address::generate(&env));
+        client.propose_admin(&admin, &Address::generate(&env));
     }
 
     #[test]
@@ -835,5 +852,100 @@ mod tests {
             &0u64,
             &1u64,
         );
+    }
+
+    // -----------------------------------------------------------------------
+    // Two-step admin transfer — issue #8
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_propose_admin_sets_pending() {
+        let env = Env::default();
+        let (admin, contract_id) = setup(&env);
+        let client = SynapseContractClient::new(&env, &contract_id);
+        let new_admin = Address::generate(&env);
+
+        client.propose_admin(&admin, &new_admin);
+        assert_eq!(client.get_pending_admin(), Some(new_admin));
+    }
+
+    #[test]
+    fn test_accept_admin_transfers_and_clears_pending() {
+        let env = Env::default();
+        let (admin, contract_id) = setup(&env);
+        let client = SynapseContractClient::new(&env, &contract_id);
+        let new_admin = Address::generate(&env);
+
+        client.propose_admin(&admin, &new_admin);
+        client.accept_admin(&new_admin);
+
+        assert_eq!(client.get_admin(), new_admin);
+        assert_eq!(client.get_pending_admin(), None);
+    }
+
+    #[test]
+    #[should_panic(expected = "not pending admin")]
+    fn test_accept_admin_panics_if_wrong_caller() {
+        let env = Env::default();
+        let (admin, contract_id) = setup(&env);
+        let client = SynapseContractClient::new(&env, &contract_id);
+        let new_admin = Address::generate(&env);
+        let rando = Address::generate(&env);
+
+        client.propose_admin(&admin, &new_admin);
+        client.accept_admin(&rando);
+    }
+
+    #[test]
+    #[should_panic(expected = "no pending admin")]
+    fn test_accept_admin_panics_if_no_proposal() {
+        let env = Env::default();
+        let (_, contract_id) = setup(&env);
+        let client = SynapseContractClient::new(&env, &contract_id);
+        let rando = Address::generate(&env);
+
+        client.accept_admin(&rando);
+    }
+
+    #[test]
+    #[should_panic(expected = "not admin")]
+    fn test_propose_admin_panics_if_not_admin() {
+        let env = Env::default();
+        let (_, contract_id) = setup(&env);
+        let client = SynapseContractClient::new(&env, &contract_id);
+        let rando = Address::generate(&env);
+
+        client.propose_admin(&rando, &rando);
+    }
+
+    #[test]
+    fn test_propose_admin_emits_event() {
+        let env = Env::default();
+        let (admin, contract_id) = setup(&env);
+        let client = SynapseContractClient::new(&env, &contract_id);
+        let new_admin = Address::generate(&env);
+
+        client.propose_admin(&admin, &new_admin);
+        let events = env.events().all();
+        assert!(!events.is_empty());
+        let (contract, topics, _) = events.last().unwrap();
+        assert_eq!(contract, contract_id);
+        assert_eq!(topics, (symbol_short!("synapse"),).into_val(&env));
+    }
+
+    #[test]
+    fn test_accept_admin_emits_event() {
+        let env = Env::default();
+        let (admin, contract_id) = setup(&env);
+        let client = SynapseContractClient::new(&env, &contract_id);
+        let new_admin = Address::generate(&env);
+
+        client.propose_admin(&admin, &new_admin);
+        client.accept_admin(&new_admin);
+        let events = env.events().all();
+        assert!(!events.is_empty());
+        let (contract, topics, _) = events.last().unwrap();
+        assert_eq!(contract, contract_id);
+        assert_eq!(topics, (symbol_short!("synapse"),).into_val(&env));
     }
 }

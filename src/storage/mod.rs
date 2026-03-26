@@ -11,6 +11,7 @@ const TX_TTL_EXTEND_TO: u32 = 172_800;
 #[contracttype]
 pub enum StorageKey {
     Admin,
+    PendingAdmin,
     Paused,
     MinDeposit,
     MaxDeposit,
@@ -32,6 +33,19 @@ pub mod admin {
             .instance()
             .get(&StorageKey::Admin)
             .expect("not initialised")
+    }
+}
+
+pub mod pending_admin {
+    use super::*;
+    pub fn set(env: &Env, addr: &Address) {
+        env.storage().instance().set(&StorageKey::PendingAdmin, addr);
+    }
+    pub fn get(env: &Env) -> Option<Address> {
+        env.storage().instance().get(&StorageKey::PendingAdmin)
+    }
+    pub fn clear(env: &Env) {
+        env.storage().instance().remove(&StorageKey::PendingAdmin);
     }
 }
 
