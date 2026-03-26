@@ -201,12 +201,13 @@ impl SynapseContract {
         require_not_paused(&env);
         require_relayer(&env, &caller);
         let mut tx = deposits::get(&env, &tx_id);
+        let old_status = tx.status.clone();
         tx.status = TransactionStatus::Processing;
         tx.updated_ledger = env.ledger().sequence();
         deposits::save(&env, &tx);
         emit(
             &env,
-            Event::StatusUpdated(tx_id, TransactionStatus::Processing),
+            Event::StatusUpdated(tx_id, old_status, TransactionStatus::Processing),
         );
     }
 
@@ -215,12 +216,13 @@ impl SynapseContract {
         require_not_paused(&env);
         require_relayer(&env, &caller);
         let mut tx = deposits::get(&env, &tx_id);
+        let old_status = tx.status.clone();
         tx.status = TransactionStatus::Completed;
         tx.updated_ledger = env.ledger().sequence();
         deposits::save(&env, &tx);
         emit(
             &env,
-            Event::StatusUpdated(tx_id, TransactionStatus::Completed),
+            Event::StatusUpdated(tx_id, old_status, TransactionStatus::Completed),
         );
     }
 
@@ -236,9 +238,14 @@ impl SynapseContract {
         require_not_paused(&env);
         require_relayer(&env, &caller);
         let mut tx = deposits::get(&env, &tx_id);
+        let old_status = tx.status.clone();
         tx.status = TransactionStatus::Failed;
         tx.updated_ledger = env.ledger().sequence();
         deposits::save(&env, &tx);
+        emit(
+            &env,
+            Event::StatusUpdated(tx_id.clone(), old_status, TransactionStatus::Failed),
+        );
         let entry = DlqEntry::new(&env, tx_id.clone(), error_reason.clone());
         dlq::push(&env, &entry);
         emit(&env, Event::MovedToDlq(tx_id, error_reason));
@@ -708,6 +715,25 @@ mod tests {
         client.retry_dlq(&admin, &tx_id);
         let entry = env.as_contract(&contract_id, || storage::dlq::get(&env, &tx_id));
         assert!(entry.is_none());
+    }
+
+    #[test]
+    #[should_panic(expected = "period_start must be <= period_end")]
+    fn test_finalize_settlement_panics_when_period_start_exceeds_period_end() {
+        let env = Env::default();
+        let (admin, contract_id) = setup(&env);
+        let client = SynapseContractClient::new(&env, &contract_id);
+        let relayer = Address::generate(&env);
+        client.grant_relayer(&admin, &relayer);
+        client.add_asset(&admin, &SorobanString::from_str(&env, "USD"));
+        client.finalize_settlement(
+            &relayer,
+            &SorobanString::from_str(&env, "USD"),
+            &vec![&env],
+            &0i128,
+            &2u64,
+            &1u64,
+        );
     }
 
     #[test]
