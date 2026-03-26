@@ -385,7 +385,10 @@ fn mark_failed_creates_dlq_entry() {
         &tx_id,
         &SorobanString::from_str(&env, "horizon timeout"),
     );
-    // TODO(#40): assert client.get_dlq_entry(&tx_id).error_reason == "horizon timeout"
+    let entry = client
+        .get_dlq_entry(&tx_id)
+        .expect("DLQ entry should exist after mark_failed");
+    assert_eq!(entry.error_reason, SorobanString::from_str(&env, "horizon timeout"));
 }
 
 // TODO(#23): test Pending→Processing guard (skip to Processing from Completed should panic)
@@ -447,6 +450,31 @@ fn admin_can_retry_dlq() {
     client.retry_dlq(&admin, &tx_id);
     let tx = client.get_transaction(&tx_id);
     assert_eq!(tx.status, synapse_contract::types::TransactionStatus::Pending);
+}
+
+#[test]
+fn dlq_entry_removed_after_successful_retry() {
+    let env = Env::default();
+    let (admin, _, client) = setup(&env);
+    let relayer = Address::generate(&env);
+    client.grant_relayer(&admin, &relayer);
+    client.add_asset(&admin, &usd(&env));
+    let tx_id = client.register_deposit(
+        &relayer,
+        &SorobanString::from_str(&env, "dlq-remove-1"),
+        &Address::generate(&env),
+        &50_000_000,
+        &usd(&env),
+        &None,
+    );
+    client.mark_failed(
+        &relayer,
+        &tx_id,
+        &SorobanString::from_str(&env, "relay error"),
+    );
+    assert!(client.get_dlq_entry(&tx_id).is_some());
+    client.retry_dlq(&admin, &tx_id);
+    assert!(client.get_dlq_entry(&tx_id).is_none());
 }
 
 #[test]

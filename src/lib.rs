@@ -197,23 +197,19 @@ impl SynapseContract {
         emit(&env, Event::MovedToDlq(tx_id, error_reason));
     }
 
-    // TODO(#29): increment retry_count on DlqEntry
     // TODO(#31): emit `DlqRetried` event
     pub fn retry_dlq(env: Env, caller: Address, tx_id: SorobanString) {
         require_not_paused(&env);
         require_admin(&env, &caller);
 
-        let mut entry = dlq::get(&env, &tx_id).expect("dlq entry not found");
+        let _ = dlq::get(&env, &tx_id).expect("dlq entry not found");
         let mut tx = deposits::get(&env, &tx_id);
 
         tx.status = TransactionStatus::Pending;
         tx.updated_ledger = env.ledger().sequence();
 
-        entry.retry_count += 1;
-        entry.last_retry_ledger = env.ledger().sequence();
-
         deposits::save(&env, &tx);
-        dlq::push(&env, &entry);
+        dlq::remove(&env, &tx_id);
 
         emit(&env, Event::StatusUpdated(tx_id, TransactionStatus::Pending));
     }
@@ -263,7 +259,10 @@ impl SynapseContract {
         id
     }
 
-    // TODO(#40): add `get_dlq_entry(tx_id)` query
+    pub fn get_dlq_entry(env: Env, tx_id: SorobanString) -> Option<DlqEntry> {
+        dlq::get(&env, &tx_id)
+    }
+
     // TODO(#41): add `get_admin()` query
     // TODO(#43): add `get_min_deposit()` query
     // TODO(#44): add `get_max_deposit()` query — DONE
@@ -549,12 +548,9 @@ mod tests {
         assert!(matches!(tx_retried.status, TransactionStatus::Pending));
         assert_eq!(tx_retried.updated_ledger, 100);
         
-        // 4. Verify DLQ Entry
-        let entry = env.as_contract(&client.address, || {
-            storage::dlq::get(&env, &tx_id).unwrap()
-        });
-        assert_eq!(entry.retry_count, 1);
-        assert_eq!(entry.last_retry_ledger, 100);
+        // 4. DLQ entry removed after successful retry (#30)
+        let entry = env.as_contract(&client.address, || storage::dlq::get(&env, &tx_id));
+        assert!(entry.is_none());
     }
 
     #[test]
