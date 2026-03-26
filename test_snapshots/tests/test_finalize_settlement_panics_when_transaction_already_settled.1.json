@@ -157,7 +157,7 @@
             },
             "ext": "v0"
           },
-          172800
+          4095
         ]
       ],
       [
@@ -226,6 +226,12 @@
                     },
                     {
                       "key": {
+                        "symbol": "callback_type"
+                      },
+                      "val": "void"
+                    },
+                    {
+                      "key": {
                         "symbol": "created_ledger"
                       },
                       "val": {
@@ -248,11 +254,9 @@
                     },
                     {
                       "key": {
-                        "symbol": "relayer"
+                        "symbol": "memo_type"
                       },
-                      "val": {
-                        "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
-                      }
+                      "val": "void"
                     },
                     {
                       "key": {
@@ -347,18 +351,6 @@
                         },
                         "val": {
                           "bool": true
-                        }
-                      },
-                      {
-                        "key": {
-                          "vec": [
-                            {
-                              "symbol": "AssetCount"
-                            }
-                          ]
-                        },
-                        "val": {
-                          "u32": 1
                         }
                       },
                       {
@@ -917,7 +909,7 @@
             "data": {
               "vec": [
                 {
-                  "string": "caught panic 'transaction already settled' from contract function 'Symbol(obj#213)'"
+                  "string": "caught panic 'transaction already settled' from contract function 'Symbol(obj#199)'"
                 },
                 {
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
