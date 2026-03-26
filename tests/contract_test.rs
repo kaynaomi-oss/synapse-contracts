@@ -5,8 +5,7 @@ use soroban_sdk::{
     testutils::{Address as _, Events as _},
     vec, Address, Env, IntoVal, String as SorobanString, TryFromVal, Val,
 };
-use synapse_contract::types::Event;
-use synapse_contract::{SynapseContract, SynapseContractClient};
+use synapse_contract::{types::Event, SynapseContract, SynapseContractClient};
 
 fn setup(env: &Env) -> (Address, Address, SynapseContractClient<'_>) {
     env.mock_all_auths();
@@ -15,6 +14,10 @@ fn setup(env: &Env) -> (Address, Address, SynapseContractClient<'_>) {
     let admin = Address::generate(env);
     client.initialize(&admin);
     (admin, id, client)
+}
+
+fn event_data(env: &Env, raw: Val) -> (Event, u32) {
+    <(Event, u32)>::try_from_val(env, &raw).unwrap()
 }
 
 fn usd(env: &Env) -> SorobanString {
@@ -29,6 +32,7 @@ fn usd(env: &Env) -> SorobanString {
 fn initialize_sets_admin() {
     let env = Env::default();
     let (_, _, _client) = setup(&env);
+    // add a file here
     // TODO(#41): assert client.get_admin() == admin once query is added
 }
 
@@ -174,22 +178,8 @@ fn register_deposit_is_idempotent() {
     client.add_asset(&admin, &usd(&env));
     let anchor_id = SorobanString::from_str(&env, "anchor-001");
     let depositor = Address::generate(&env);
-    let id1 = client.register_deposit(
-        &relayer,
-        &anchor_id,
-        &depositor,
-        &100_000_000,
-        &usd(&env),
-        &None,
-    );
-    let id2 = client.register_deposit(
-        &relayer,
-        &anchor_id,
-        &depositor,
-        &100_000_000,
-        &usd(&env),
-        &None,
-    );
+    let id1 = client.register_deposit(&relayer, &anchor_id, &depositor, &100_000_000, &usd(&env), &None);
+    let id2 = client.register_deposit(&relayer, &anchor_id, &depositor, &100_000_000, &usd(&env), &None);
     assert_eq!(id1, id2);
 }
 
@@ -358,9 +348,29 @@ fn mark_failed_creates_dlq_entry() {
     // TODO(#40): assert client.get_dlq_entry(&tx_id).error_reason == "horizon timeout"
 }
 
-// TODO(#23): test Pending→Processing guard (skip to Processing from Completed should panic)
 // TODO(#25): test Processing→Completed guard
 // TODO(#26): test Failed transition guard
+
+#[test]
+#[should_panic(expected = "invalid status transition")]
+fn mark_processing_on_non_pending_tx_panics() {
+    let env = Env::default();
+    let (admin, _, client) = setup(&env);
+    let relayer = Address::generate(&env);
+    client.grant_relayer(&admin, &relayer);
+    client.add_asset(&admin, &usd(&env));
+    let tx_id = client.register_deposit(
+        &relayer,
+        &SorobanString::from_str(&env, "lifecycle-guard-1"),
+        &Address::generate(&env),
+        &50_000_000,
+        &usd(&env),
+    );
+    client.mark_processing(&relayer, &tx_id);
+    client.mark_completed(&relayer, &tx_id);
+    // tx is now Completed — must panic
+    client.mark_processing(&relayer, &tx_id);
+}
 
 // ---------------------------------------------------------------------------
 // DLQ retry — TODO(#29)–(#32)
@@ -401,20 +411,27 @@ fn original_relayer_can_retry_dlq() {
 fn unrelated_relayer_cannot_retry_dlq() {
     let env = Env::default();
     let (admin, _, client) = setup(&env);
-    let relayer = Address::generate(&env);
-    let other = Address::generate(&env);
-    client.grant_relayer(&admin, &relayer);
+    let relayer1 = Address::generate(&env);
+    let relayer2 = Address::generate(&env);
+    client.grant_relayer(&admin, &relayer1);
+    client.grant_relayer(&admin, &relayer2);
     client.add_asset(&admin, &usd(&env));
+
     let tx_id = client.register_deposit(
-        &relayer,
-        &SorobanString::from_str(&env, "dlq-auth"),
+        &relayer1,
+        &SorobanString::from_str(&env, "dlq-unrelated"),
         &Address::generate(&env),
         &50_000_000,
         &usd(&env),
         &None,
     );
-    client.mark_failed(&relayer, &tx_id, &SorobanString::from_str(&env, "err"));
-    client.retry_dlq(&other, &tx_id);
+    client.mark_failed(
+        &relayer1,
+        &tx_id,
+        &SorobanString::from_str(&env, "timeout"),
+    );
+
+    client.retry_dlq(&relayer2, &tx_id);
 }
 
 // TODO(#31): test DlqRetried event emitted
@@ -461,25 +478,13 @@ fn finalize_settlement_emits_settlement_finalized_event() {
     client.grant_relayer(&admin, &relayer);
     client.add_asset(&admin, &usd(&env));
 
-    let tx_id_1 = client.register_deposit(
-        &relayer,
-        &SorobanString::from_str(&env, "a4"),
-        &Address::generate(&env),
-        &40_000_000,
-        &usd(&env),
-        &None,
-    );
+    let tx_id_1 = client.register_deposit(&relayer, &SorobanString::from_str(&env, "a4"),
+        &Address::generate(&env), &40_000_000, &usd(&env), &None);
     client.mark_processing(&relayer, &tx_id_1);
     client.mark_completed(&relayer, &tx_id_1);
 
-    let tx_id_2 = client.register_deposit(
-        &relayer,
-        &SorobanString::from_str(&env, "a5"),
-        &Address::generate(&env),
-        &60_000_000,
-        &usd(&env),
-        &None,
-    );
+    let tx_id_2 = client.register_deposit(&relayer, &SorobanString::from_str(&env, "a5"),
+        &Address::generate(&env), &60_000_000, &usd(&env), &None);
     client.mark_processing(&relayer, &tx_id_2);
     client.mark_completed(&relayer, &tx_id_2);
 
@@ -494,14 +499,32 @@ fn finalize_settlement_emits_settlement_finalized_event() {
 
     let all_events = env.events().all();
     let topics: soroban_sdk::Vec<Val> = (symbol_short!("synapse"),).into_val(&env);
-    let (event_contract, event_topics, event_data) = all_events.get(all_events.len() - 1).unwrap();
-    assert_eq!(event_contract, contract_id);
-    assert_eq!(event_topics, topics);
+    let ledger = env.ledger().sequence();
+
+    let (event_contract_1, event_topics_1, event_data_1) = all_events.get(event_count - 3).unwrap();
+    let (event_contract_2, event_topics_2, event_data_2) = all_events.get(event_count - 2).unwrap();
+    let (event_contract_3, event_topics_3, event_data_3) = all_events.get(event_count - 1).unwrap();
+
+    assert_eq!(event_contract_1, contract_id.clone());
+    assert_eq!(event_topics_1, topics.clone());
     assert_eq!(
-        Event::try_from_val(&env, &event_data).unwrap(),
-        Event::SettlementFinalized(settlement_id, usd(&env), 100_000_000),
+        event_data(&env, event_data_1),
+        (Event::Settled(tx_id_1, settlement_id.clone()), ledger),
     );
-}
+
+    assert_eq!(event_contract_2, contract_id.clone());
+    assert_eq!(event_topics_2, topics.clone());
+    assert_eq!(
+        event_data(&env, event_data_2),
+        (Event::Settled(tx_id_2, settlement_id.clone()), ledger),
+    );
+
+    assert_eq!(event_contract_3, contract_id);
+    assert_eq!(event_topics_3, topics);
+    assert_eq!(
+        event_data(&env, event_data_3),
+        (Event::SettlementFinalized(settlement_id, usd(&env), 100_000_000), ledger),
+    );
 
 // TODO(#33): test that settling a non-Completed tx panics
 // TODO(#34): test that settling an already-settled tx panics
