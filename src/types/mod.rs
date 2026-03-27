@@ -146,6 +146,7 @@ pub enum Event {
     // DLQ
     MovedToDlq(SorobanString, SorobanString),                // (tx_id, error_reason)
     DlqRetried(SorobanString),                               // (tx_id)
+    MaxRetriesExceeded(SorobanString),
     SettlementFinalized(SorobanString, SorobanString, i128), // (settlement_id, asset_code, total)
     Settled(SorobanString, SorobanString),                   // (tx_id, settlement_id)
     AssetAdded(SorobanString),

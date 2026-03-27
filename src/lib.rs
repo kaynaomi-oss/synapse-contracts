@@ -108,6 +108,7 @@ pub fn grant_relayer(env: Env, caller: Address, relayer: Address) {
     pub fn pause(env: Env, caller: Address) {
         require_admin(&env, &caller);
         storage::pause::set(&env, true);
+        emit(&env, types::Event::ContractPaused);
     }
 
     pub fn unpause(env: Env, caller: Address) {
@@ -157,9 +158,11 @@ pub fn grant_relayer(env: Env, caller: Address, relayer: Address) {
         max_deposit::set(&env, &amount);
     }
 
-    pub fn get_max_deposit(env: Env) -> Option<i128> {
+
+    pub fn get_max_deposit(env: Env) -> i128 {
         max_deposit::get(&env)
     }
+
 
     // TODO(#15): enforce minimum deposit amount (configurable by admin)
     // TODO(#16): enforce maximum deposit amount (configurable by admin) — DONE
